@@ -13,7 +13,7 @@
 
 ## 宿題
 
-- 取り組んだレベル：実装
+- 取り組んだレベル：基礎
 - 変えた設定やデータ：データは変えず、LoRA の設定を比較した。共通設定は Qwen/Qwen3.5-0.8B、seed=42、lr=0.0002、lora_alpha=32、max_seq_len=512。比較した設定は (1) num_train_epochs=20、lora_r=16、(2) num_train_epochs=40、lora_r=16、(3) num_train_epochs=20、lora_r=24。
 - 結果（比較表や数字）：
 
