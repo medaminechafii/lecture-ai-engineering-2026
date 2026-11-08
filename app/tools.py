@@ -10,6 +10,7 @@ from pathlib import Path
 import random
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+LEARNING_LOG_DIR = Path(__file__).resolve().parent.parent / "learning_log"
 MAX_RESULTS = 3
 
 
@@ -96,3 +97,15 @@ def make_quiz(lecture: int) -> str:
         },
         ensure_ascii=False,
     )
+
+
+def save_earning_log(entry: str) -> str:
+    """学習記録を learning_log/ に追記する。
+
+    利用者が学んだことを記録したいときに使う。記録は保存前に利用者の承認を求める。
+    """
+    LEARNING_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log_path = LEARNING_LOG_DIR / "learning_log.md"
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(f"{entry}\n")
+    return "学習記録を保存しました。"

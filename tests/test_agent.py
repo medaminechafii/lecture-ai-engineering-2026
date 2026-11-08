@@ -8,8 +8,10 @@ TestModel は実際のLLMを呼ばない偽モデルで、登録されたツー�
 from pydantic_ai import DeferredToolRequests
 from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.tools import DeferredToolRequests
 
 from app.agent import agent
+from app import tools
 
 BASE_TOOLS = {"search_glossary", "get_lecture_summary"}
 
@@ -19,7 +21,7 @@ def _parts(result, kind):
 
 
 def test_base_tools_are_registered_and_called():
-    model = TestModel()
+    model = TestModel(call_tools=["search_glossary", "get_lecture_summary", "make_quiz"])
     with agent.override(model=model):
         result = agent.run_sync("LoRAとは？")
 
@@ -40,3 +42,35 @@ def test_glossary_result_reaches_the_model():
         result = agent.run_sync("RAGとは？")
     returns = _parts(result, ToolReturnPart)
     assert returns and returns[0].tool_name == "search_glossary"
+
+
+def test_saving_learning_log_waits_for_approval(tmp_path, monkeypatch):
+    monkeypatch.setattr(tools, "LEARNING_LOG_DIR", tmp_path / "learning_log")
+    with agent.override(model=TestModel(call_tools=["save_earning_log"])):
+        pending = agent.run_sync("今日学んだことを記録して")
+
+    assert isinstance(pending.output, DeferredToolRequests)
+    assert [call.tool_name for call in pending.output.approvals] == ["save_earning_log"]
+    assert not (tmp_path / "learning_log" / "learning_log.md").exists()
+
+    request = pending.output.approvals[0]
+    with agent.override(model=TestModel(call_tools=[])):
+        denied = agent.run_sync(
+            None,
+            message_history=pending.all_messages(),
+            deferred_tool_results=pending.output.build_results(
+                approvals={request.tool_call_id: False}
+            ),
+        )
+    assert denied.output
+    assert not (tmp_path / "learning_log" / "learning_log.md").exists()
+
+    with agent.override(model=TestModel(call_tools=[])):
+        result = agent.run_sync(
+            None,
+            message_history=pending.all_messages(),
+            deferred_tool_results=pending.output.build_results(approve_all=True),
+        )
+
+    assert result.output
+    assert (tmp_path / "learning_log" / "learning_log.md").read_text(encoding="utf-8").strip()
